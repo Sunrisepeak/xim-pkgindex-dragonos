@@ -34,6 +34,7 @@ package = {
 import("xim.libxpkg.log")
 import("xim.libxpkg.pkginfo")
 import("xim.libxpkg.system")
+import("xim.libxpkg.pkgmanager")
 
 local install_file = "install-info.xim"
 
@@ -57,12 +58,12 @@ function install()
     local scode_dir = "DragonOS-" .. pkginfo.version()
     local real_installdir = path.join(system.rundir(), scode_dir)
 
-    log.info("0 - install dir(source code): %s", real_installdir)
-    os.trymv(scode_dir, real_installdir)
-
-    -- 1.rust toolchain and components
-    log.info("1 - install rust toolchain and components")
+    -- 0.rust toolchain and components
+    log.info("0 - install rust toolchain and components")
     __rust_components_install()
+
+    log.info("1 - install dir(source code): %s", real_installdir)
+    os.trymv(scode_dir, real_installdir)
 
     -- 2.python package
     log.info("2 - install python package")
@@ -100,6 +101,9 @@ end
 -- private function
 
 function __rust_components_install(component)
+
+    -- config rustup mirror (tmp)
+    pkgmanager.install("rustup-mirror")
 
     local components = {
         [[rustup toolchain install %s-x86_64-unknown-linux-gnu]],
