@@ -8,13 +8,13 @@ xim package index for dragonos community
 
 ```bash
 xim --add-indexrepo dragonos:https://github.com/sunrisepeak/xim-pkgindex-dragonos.git
+xim --update index
 ```
 
 ## 使用仓库中的包
 
 ```bash
-xlings install dragonos:dadk
-xlings install config:dragonos-dev
+xlings install dragonos:dragonos-dev
 ```
 
 ## 其他

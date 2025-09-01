@@ -15,11 +15,11 @@ package = {
 
     -- xim pkg info
     type = "config",
-    namespace = "config",
+    namespace = "dragonos",
 
     xpm = {
         debian = {
-            deps = { "make", "rust", "python@3", "musl-gcc", "qemu@10", "dadk@0.4" },
+            deps = { "make", "rust", "python@3", "musl-gcc", "qemu", "dadk", "dragonos-tool" },
             ["0.2.0"] = {
                 url = {
                     GLOBAL = github_scode("0.2.0"),
@@ -58,6 +58,13 @@ function install()
     local scode_dir = "DragonOS-" .. pkginfo.version()
     local real_installdir = path.join(system.rundir(), scode_dir)
 
+    log.warn("system/local config...")
+    if linuxos.name() == "debian" or linuxos.name() == "ubuntu" then
+        __debian_config()
+    else
+        log.warn("TODO: %s", linuxos.name())
+    end
+
     -- 0.rust toolchain and components
     log.info("0 - install rust toolchain and components")
     __rust_components_install()
@@ -73,6 +80,8 @@ function install()
 
     -- 3.create install_file
     io.writefile(path.join(pkginfo.install_dir(), install_file), real_installdir)
+
+    log.info("install done - " .. real_installdir)
 
     return true
 end
@@ -141,6 +150,12 @@ function __rust_components_install(component)
 end
 
 function __debian_config()
-
+    -- TODO: add to pkgindex
+    system.exec("sudo apt install -y "
+        .. " ca-certificates curl wget unzip gnupg lsb-release"
+        .. " llvm-dev libclang-dev clang gcc-multilib"
+        .. " gcc build-essential fdisk dosfstools dnsmasq bridge-utils iptables libssl-dev pkg-config"
+        .. " git"
+    )
     return true
 end
