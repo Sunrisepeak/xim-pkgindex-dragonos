@@ -87,7 +87,7 @@ function xpkg_main(action, ...)
 
     if action == "init" then
         pkgmanager.install("dragonos:dragonos-dev")
-        
+        set_dadk_version()
     elseif action == "build" then
         if cmds["--only-diskimg"] then
             system.exec("make write_diskimage")
