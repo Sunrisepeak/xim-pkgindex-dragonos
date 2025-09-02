@@ -46,9 +46,6 @@ function install()
     log.info("1 - install rust toolchain and components")
     __rust_components_install()
 
-    -- 2.python package
-    log.info("2 - install python package")
-
     return true
 end
 

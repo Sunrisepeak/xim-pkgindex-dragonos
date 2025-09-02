@@ -27,11 +27,19 @@ import("xim.libxpkg.xvm")
 import("xim.libxpkg.log")
 import("xim.libxpkg.pkginfo")
 
+-- function install (default - dragonos-tool)
+
 function config()
     xvm.add("dotool", {
         alias = "dragonos-tool",
         binding = "dragonos-tool@" .. pkginfo.version(),
     })
+    return true
+end
+
+function uninstall()
+    xvm.remove("dotool")
+    xvm.remove("dragonos-tool")
     return true
 end
 
