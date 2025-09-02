@@ -33,6 +33,7 @@ import("xim.libxpkg.xvm")
 function install()
 
     system.exec("xvm workspace global --active false")
+        system.exec("rustup default nightly-2025-08-10-x86_64-unknown-linux-gnu")
         system.exec("cargo install --git"
             .. " https://git.mirrors.dragonos.org.cn/DragonOS-Community/DADK.git"
             .. " --tag"
