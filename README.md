@@ -13,8 +13,18 @@ xim --update index
 
 ## 使用仓库中的包
 
+> 一键配置环境 并获取内核代码(支持镜像路线自动选择) 
+
 ```bash
+# 自动下载安装相关工具链 rust / make / qemu / dadk / dragonos-tool ...
 xlings install dragonos:dragonos-dev
+```
+
+```bash
+# dragon-tool init 在当前目录初始化项目(支持自动识别dadk版本并切换)
+dotool init
+dotool build # 支持自动重试机制(retry = 3)
+dotool run
 ```
 
 ## 其他

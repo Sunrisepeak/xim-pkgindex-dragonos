@@ -9,11 +9,11 @@ package = {
     -- xim pkg info
     type = "script",
     namespace = "dragonos",
-    programs = { "dragonos-tool" },
+    programs = { "dragonos-tool", "dotool" },
 
     xpm = {
         linux = {
-            deps = { "make" },
+            deps = { "make", "xpkg-helper" },
             ["latest"] = { ref = "0.0.1" },
             ["0.0.1"] = { },
         },
@@ -25,6 +25,17 @@ import("xim.libxpkg.system")
 import("xim.libxpkg.pkgmanager")
 import("xim.libxpkg.xvm")
 import("xim.libxpkg.log")
+import("xim.libxpkg.pkginfo")
+
+function config()
+    xvm.add("dotool", {
+        alias = "dragonos-tool",
+        binding = "dragonos-tool@" .. pkginfo.version(),
+    })
+    return true
+end
+
+--- script
 
 local __xscript_input = {
     -- build
@@ -32,6 +43,9 @@ local __xscript_input = {
     -- run
     ["--nographic"] = false,
 }
+
+local project_makefile = path.join(system.rundir(), "Makefile")
+local project_user_makefile = path.join("user/Makefile")
 
 function help_info()
     cprint("${green}%s - 0.0.1${clear}", package.description)
@@ -45,8 +59,8 @@ function help_info()
     cprint("  ${dim cyan}clean${clear}         Clean build artifacts")
     cprint("")
     cprint("Options:")
-    cprint("  ${dim cyan}--nographic${clear}   Run QEMU in nographic mode (no GUI)")
-    cprint("  ${dim cyan}--only-diskimg${clear}Update disk image - sysroot")
+    cprint("  ${dim cyan}--nographic${clear}     Run QEMU in nographic mode (no GUI)")
+    cprint("  ${dim cyan}--only-diskimg${clear}  Update disk image - sysroot")
     cprint("")
     cprint("Example:")
     cprint("  ${dim cyan}dragonos-tool init${clear}");
@@ -56,9 +70,8 @@ end
 
 function set_dadk_version()
     log.info("Setting DADK version...")
-    local user_makefile = path.join(system.rundir(), "user/Makefile")
-    if os.isfile(user_makefile) then
-        local content = io.readfile(user_makefile)
+    if os.isfile(project_user_makefile) then
+        local content = io.readfile(project_user_makefile)
         -- MIN_DADK_VERSION = 0.4.0
         local version = content:match("MIN_DADK_VERSION%s*=%s*([%d%.]+)")
         if version then
@@ -71,9 +84,47 @@ function set_dadk_version()
             log.error("DADK version not found in Makefile")
         end
     else
-        log.error("Makefile not found  - " .. user_makefile)
-        log.warn("Please run [dragonos-tool] in project root directory")
+        log.error("Makefile not found  - " .. project_user_makefile)
     end
+end
+
+function action_init()
+
+    local projectdir = os.curdir()
+
+    pkgmanager.install("dragonos:dragonos-dev")
+
+    log.info("Checking project...")
+
+    if os.isfile(project_makefile) then
+        log.info("Project Makefile found...")
+    else
+        log.warn("Project not found, install DragonOS source code...")
+        if not xvm.has("dragonos:dragonos-scode", "") then
+            pkgmanager.install("dragonos:dragonos-scode")
+        end
+
+        local info = xvm.info("dragonos-scode", "")
+        projectdir = path.join(
+            system.rundir(),
+            "dragonos@" .. info["Version"]
+        )
+
+        system.exec(
+            "xpkg-helper dragonos:dragonos-scode"
+            .. " --export-path " .. projectdir
+        )
+
+        os.cd(projectdir)
+    end
+
+    log.info("Setting up Python environment...")
+    -- TODO: use python3 -m venv
+    system.exec("pip3 install --break-system-packages -r docs/requirements.txt", { retry = 3})
+
+    set_dadk_version()
+
+    log.info("${bright}DragonOS | ${yellow}%s${clear} - ${green}ok", projectdir)
 end
 
 function xpkg_main(action, ...)
@@ -83,16 +134,13 @@ function xpkg_main(action, ...)
         { ... }
     )
 
-    os.cd(system.rundir())
-
     if action == "init" then
-        pkgmanager.install("dragonos:dragonos-dev")
-        set_dadk_version()
+        action_init()
     elseif action == "build" then
         if cmds["--only-diskimg"] then
             system.exec("make write_diskimage")
         else
-            system.exec("make build")
+            system.exec("make build", { retry = 3 })
         end
     elseif action == "run" then
         if cmds["--nographic"] then

@@ -1,5 +1,3 @@
-function github_scode(version) return string.format("https://github.com/DragonOS-Community/DragonOS/archive/refs/tags/V%s.tar.gz", version) end
-
 package = {
     homepage = "https://dragonos.org",
 
@@ -20,19 +18,14 @@ package = {
     xpm = {
         debian = {
             deps = { "make", "rust", "python@3", "musl-gcc", "qemu", "dadk", "dragonos-tool" },
-            ["0.2.0"] = {
-                url = {
-                    GLOBAL = github_scode("0.2.0"),
-                    CN = github_scode("0.2.0"), -- TODO
-                },
-                sha256 = nil,
-            },
+            ["latest"] = { ref = "0.2.0" },
+            ["0.2.0"] = { }
         },
     },
 }
 
 import("xim.libxpkg.log")
-import("xim.libxpkg.pkginfo")
+import("xim.libxpkg.xvm")
 import("xim.libxpkg.system")
 import("xim.libxpkg.pkgmanager")
 
@@ -41,47 +34,20 @@ local install_file = "install-info.xim"
 local RUST_VERSION = "nightly-2025-08-10"
 local RUST_VERSION_OLD = "nightly-2024-11-05"
 
-function installed()
-    local installdir = pkginfo.install_dir()
-    local install_file_path = path.join(installdir, install_file)
-    if os.isfile(install_file_path) then
-        local real_installdir = io.readfile(install_file_path)
-        if os.isdir(real_installdir) then
-            log.info("install dir: %s", real_installdir)
-            return true
-        end
-    end
-    return false
-end
-
 function install()
-    local scode_dir = "DragonOS-" .. pkginfo.version()
-    local real_installdir = path.join(system.rundir(), scode_dir)
 
-    log.warn("system/local config...")
+    log.warn("0 - system config-base...")
     if linuxos.name() == "debian" or linuxos.name() == "ubuntu" then
         __debian_config()
     else
         log.warn("TODO: %s", linuxos.name())
     end
 
-    -- 0.rust toolchain and components
-    log.info("0 - install rust toolchain and components")
+    log.info("1 - install rust toolchain and components")
     __rust_components_install()
-
-    log.info("1 - install dir(source code): %s", real_installdir)
-    os.trymv(scode_dir, real_installdir)
 
     -- 2.python package
     log.info("2 - install python package")
-    os.cd(real_installdir)
-    -- TODO: use python3 -m venv
-    system.exec("pip3 install --break-system-packages -r docs/requirements.txt", { retry = 3})
-
-    -- 3.create install_file
-    io.writefile(path.join(pkginfo.install_dir(), install_file), real_installdir)
-
-    log.info("install done - " .. real_installdir)
 
     return true
 end
@@ -100,10 +66,13 @@ function config()
         os.exec("sudo usermod -aG kvm " .. current_user)
     end
 
+    xvm.add("dragonos-dev")
+
     return true
 end
 
 function uninstall()
+    xvm.remove("dragonos-dev")
     return true
 end
 
