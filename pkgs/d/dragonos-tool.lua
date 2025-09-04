@@ -149,13 +149,12 @@ function action_app_install(cmds)
     local dstpath = cmds.dstpath
 
     local fname = path.filename(binfile)
-    local sysroot_dir = "sysroot-not-found"
+    local sysroot_dir = path.join(cmds["--project-dir"], "bin/sysroot")
 
-    if not cmds["--project-dir"] and os.isfile(dotool_config_file) then
+    if not os.isdir(sysroot_dir) and os.isfile(dotool_config_file) then
         cmds["--project-dir"] = io.readfile(dotool_config_file)
+        sysroot_dir = path.join(cmds["--project-dir"], "bin/sysroot")
     end
-
-    sysroot_dir = path.join(cmds["--project-dir"], "bin/sysroot")
 
     if not os.isdir(sysroot_dir) then
         log.error("System root directory not found - " .. sysroot_dir)
