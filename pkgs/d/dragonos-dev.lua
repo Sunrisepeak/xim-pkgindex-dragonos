@@ -129,10 +129,12 @@ end
 function __archlinux_config()
     system.exec("sudo pacman -S --needed --noconfirm "
         .. " curl wget bridge-utils dnsmasq"
-        .. " diffutils pkgconf which unzip util-linux dosfstools"
+        .. " diffutils pkgconf which unzip dosfstools"
         .. " gcc flex texinfo gmp mpfr"
         .. " libmpc openssl"
     )
+    -- pacman baseon curl, don't to overwrite it
+    --system.exec("sudo pacman -S --noconfirm --overwrite util-linux")
 end
 
 function __debian_config()
