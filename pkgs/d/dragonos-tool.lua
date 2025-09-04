@@ -50,9 +50,11 @@ local __xscript_input = {
     ["--only-diskimg"] = false,
     -- run
     ["--nographic"] = false,
+    ["--project-dir"] = false,
 }
 
-local project_makefile = path.join(system.rundir(), "Makefile")
+local dotool_config_file = path.join(os.scriptdir(), ".dotool")
+local project_makefile = path.join("Makefile")
 local project_user_makefile = path.join("user/Makefile")
 
 function help_info()
@@ -64,15 +66,19 @@ function help_info()
     cprint("  ${dim cyan}init${clear}          Initialize DragonOS development environment")
     cprint("  ${dim cyan}build${clear}         Build the DragonOS project")
     cprint("  ${dim cyan}run${clear}           Run the DragonOS project in QEMU")
+    cprint("  ${dim cyan}export${clear}        Export DragonOS source code to current directory")
+    cprint("  ${dim cyan}install${clear}       Install a binary to the DragonOS sysroot")
     cprint("  ${dim cyan}clean${clear}         Clean build artifacts")
     cprint("")
     cprint("Options:")
     cprint("  ${dim cyan}--nographic${clear}     Run QEMU in nographic mode (no GUI)")
     cprint("  ${dim cyan}--only-diskimg${clear}  Update disk image - sysroot")
+    cprint("  ${dim cyan}--project-dir=DIR${clear} Specify the DragonOS project directory (default: current directory)")
     cprint("")
     cprint("Example:")
     cprint("  ${dim cyan}dragonos-tool init${clear}");
     cprint("  ${dim cyan}dragonos-tool run${clear}");
+    cprint("  ${dim cyan}dragonos-tool install path/to/binary");
     cprint("")
 end
 
@@ -96,9 +102,9 @@ function set_dadk_version()
     end
 end
 
-function action_init()
+function action_init(cmds)
 
-    local projectdir = os.curdir()
+    local projectdir = cmds["--project-dir"] or os.curdir()
 
     pkgmanager.install("dragonos:dragonos-dev")
 
@@ -114,7 +120,7 @@ function action_init()
 
         local info = xvm.info("dragonos-scode", "")
         projectdir = path.join(
-            system.rundir(),
+            os.scriptdir(),
             "dragonos@" .. info["Version"]
         )
 
@@ -124,6 +130,8 @@ function action_init()
         )
 
         os.cd(projectdir)
+
+        io.writefile(dotool_config_file, projectdir)
     end
 
     log.info("Setting up Python environment...")
@@ -135,6 +143,44 @@ function action_init()
     log.info("${bright}DragonOS | ${yellow}%s${clear} - ${green}ok", projectdir)
 end
 
+function action_app_install(cmds)
+
+    local binfile = cmds.binfile
+    local dstpath = cmds.dstpath
+
+    local fname = path.filename(binfile)
+    local sysroot_dir = "sysroot-not-found"
+
+    if not cmds["--project-dir"] and os.isfile(dotool_config_file) then
+        cmds["--project-dir"] = io.readfile(dotool_config_file)
+    end
+
+    sysroot_dir = path.join(cmds["--project-dir"], "bin/sysroot")
+
+    if not os.isdir(sysroot_dir) then
+        log.error("System root directory not found - " .. sysroot_dir)
+        log.warn("Please run '${cyan}dragonos-tool init && dragonos-tool build${clear}' first to set up the environment.")
+        return
+    end
+
+    if not os.isfile(binfile) then
+        log.error("Source binary file not found: " .. binfile)
+        return
+    end
+
+    dstpath = path.join(dstpath or "bin", fname)
+
+    log.info("Copying %s to %s", binfile, path.join(sysroot_dir, dstpath))
+
+    os.cp(binfile, path.join(sysroot_dir, dstpath))
+
+    log.info("update disk image...")
+
+    system.exec("dotool build --only-diskimg --project-dir " .. cmds["--project-dir"])
+
+    log.info("${bright}Install to sysroot - ${yellow}%s${clear} - ${green}ok", dstpath)
+end
+
 function xpkg_main(action, ...)
 
     local _, cmds = utils.input_args_process(
@@ -142,13 +188,44 @@ function xpkg_main(action, ...)
         { ... }
     )
 
+    if not cmds["--project-dir"] then
+        cmds["--project-dir"] = os.curdir()
+    end
+
     if action == "init" then
-        action_init()
+        action_init(cmds)
+    elseif action == "export" then
+        system.exec("xpkg-helper dragonos:dragonos-scode")
+    elseif action == "install" then
+        local args = { ... }
+        if #args < 1 then
+            log.error("dograonos-tool install [src-binary] <dst-path-dir>")
+            return
+        end
+
+        cmds.binfile = args[1]
+        cmds.dstpath = args[2]
+
+        action_app_install(cmds)
+
     else
 
+        os.cd(cmds["--project-dir"])
+
         if not os.isfile(project_makefile) then
-            log.error("Project Makefile not found - run 'dragonos-tool init' or 'dotool init' first")
-            return
+            local default_projectdir
+            if os.isfile(dotool_config_file) then default_projectdir = io.readfile(dotool_config_file) end
+            if default_projectdir and os.isdir(default_projectdir) then
+                os.cd(default_projectdir)
+                cmds["--project-dir"] = default_projectdir
+                log.warn("Changed to default project directory: " .. default_projectdir)
+            else
+                log.error("Project Makefile not found - try to run:")
+                cprint("")
+                cprint("  ${dim cyan}dragonos-tool init${clear}");
+                cprint("")
+                return
+            end
         end
 
         if action == "build" then
