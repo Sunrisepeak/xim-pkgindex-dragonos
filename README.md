@@ -21,7 +21,7 @@ xlings install dragonos:dragonos-dev
 ```
 
 ```bash
-# dragon-tool init 在当前目录初始化项目(支持自动识别dadk版本并切换)
+# dragonos-tool init 在当前目录初始化项目(支持自动识别dadk版本并切换)
 dotool init
 dotool build # 支持自动重试机制(retry = 3)
 dotool run

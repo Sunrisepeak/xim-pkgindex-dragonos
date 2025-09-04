@@ -33,6 +33,7 @@ package = {
     },
 }
 
+import("xim.libxpkg.log")
 import("xim.libxpkg.pkginfo")
 import("xim.libxpkg.xvm")
 
@@ -60,7 +61,30 @@ function install()
     return installed() -- check again
 end
 
+function config()
+    __append_patch()
+    return true
+end
+
 function uninstall()
     xvm.remove("dragonos-scode")
     return true
+end
+
+-- private
+
+function __append_patch()
+
+    if pkginfo.version() == "0.2.0" then
+        log.info("patch write_disk_image.sh for busybox init...")
+        local write_disk_image = path.join(pkginfo.install_dir(), "tools/write_disk_image.sh")
+        if os.isfile(write_disk_image) then
+            local content = io.readfile(write_disk_image)
+            content = content:replace("init=/bin/dragonreach", "init=/bin/busybox init")
+            io.writefile(write_disk_image, content)
+        else
+            log.warn("cannot find write-disk-image.sh to patch")
+        end
+    end
+
 end

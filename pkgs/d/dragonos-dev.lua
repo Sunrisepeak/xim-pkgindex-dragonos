@@ -16,7 +16,7 @@ package = {
     namespace = "dragonos",
 
     xpm = {
-        debian = {
+        linux = {
             deps = { "make", "rust", "python@3", "musl-gcc", "qemu", "dadk", "dragonos-tool" },
             ["latest"] = { ref = "0.2.0" },
             ["0.2.0"] = { }
@@ -37,10 +37,11 @@ local RUST_VERSION_OLD = "nightly-2024-11-05"
 function install()
 
     log.warn("0 - system config-base...")
-    if linuxos.name() == "debian" or linuxos.name() == "ubuntu" then
-        __debian_config()
+    local system_config = __system_config()[linuxos.name()]
+    if system_config then
+        system_config()
     else
-        log.warn("TODO: %s", linuxos.name())
+        log.warn("TODO: %s - system_config", linuxos.name())
     end
 
     log.info("1 - install rust toolchain and components")
@@ -115,6 +116,25 @@ function __rust_components_install(component)
     return true
 end
 
+function __system_config()
+    return {
+        ["debian"] = __debian_config,
+        ["ubuntu"] = __debian_config,
+
+        ["archlinux"] = __archlinux_config,
+        ["manjaro"] = __archlinux_config,
+    }
+end
+
+function __archlinux_config()
+    system.exec("sudo pacman -S --needed --noconfirm "
+        .. " curl wget bridge-utils dnsmasq"
+        .. " diffutils pkgconf which unzip util-linux dosfstools"
+        .. " gcc flex texinfo gmp mpfr"
+        .. " libmpc openssl"
+    )
+end
+
 function __debian_config()
     -- TODO: add to pkgindex
     system.exec("sudo apt install -y "
@@ -123,5 +143,4 @@ function __debian_config()
         .. " gcc build-essential fdisk dosfstools dnsmasq bridge-utils iptables libssl-dev pkg-config"
         .. " git"
     )
-    return true
 end

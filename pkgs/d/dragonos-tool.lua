@@ -13,7 +13,7 @@ package = {
 
     xpm = {
         linux = {
-            deps = { "make", "xpkg-helper" },
+            deps = { "make", "xpkg-helper", "python@3" },
             ["latest"] = { ref = "0.0.1" },
             ["0.0.1"] = { },
         },
@@ -144,22 +144,38 @@ function xpkg_main(action, ...)
 
     if action == "init" then
         action_init()
-    elseif action == "build" then
-        if cmds["--only-diskimg"] then
-            system.exec("make write_diskimage")
-        else
-            system.exec("make build", { retry = 3 })
-        end
-    elseif action == "run" then
-        if cmds["--nographic"] then
-            system.exec("make qemu-nographic")
-        else
-            system.exec("make qemu")
-        end
-    elseif action == "clean" then
-        system.exec("make clean")
     else
-        help_info()
+
+        if not os.isfile(project_makefile) then
+            log.error("Project Makefile not found - run 'dragonos-tool init' or 'dotool init' first")
+            return
+        end
+
+        if action == "build" then
+            if cmds["--only-diskimg"] then
+                system.exec("make write_diskimage")
+            else
+                system.exec("make build", { retry = 3 })
+            end
+        elseif action == "run" then
+
+            if not os.isfile("bin/disk-image-x86_64.img") then
+                log.warn("os disk-image not found, building os disk-image first...")
+                log.info("try to run [ dragonos-tool build ] build${blink}...")
+                os.sleep(3000)
+                system.exec("dragonos-tool build")
+            end
+
+            if cmds["--nographic"] then
+                system.exec("make qemu-nographic")
+            else
+                system.exec("make qemu")
+            end
+        elseif action == "clean" then
+            system.exec("make clean")
+        else
+            help_info()
+        end
     end
 
 end
